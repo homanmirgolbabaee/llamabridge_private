@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messaggites = []
 
 if "user" not in st.session_state:
     st.session_state.user = ""
