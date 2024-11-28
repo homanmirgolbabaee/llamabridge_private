@@ -36,8 +36,6 @@ st.logo("logo.svg", link="https://toolhouse.ai")
 with st.sidebar:
     t = Toolhouse(provider=st.session_state.provider)
     st.title("💬 Playground")
-    st.markdown("#### Get $150 credits: join.toolhouse.ai")
-    image = st.image("join.png")
     with st.expander("Advanced"):
         llm_choice = st.selectbox("Model", tuple(llms.keys()))
         st.session_state.stream = st.toggle("Stream responses", True)
@@ -63,9 +61,6 @@ with st.sidebar:
                 tool_name = tool["function"].get("name")
             st.page_link(f"https://app.toolhouse.ai/store/{tool_name}", label=tool_name)
 
-        st.caption(
-            "\n\nManage your tools in the [Tool Store](https://app.toolhouse.ai/store) or your [Bundles](https://app.toolhouse.ai/bundles)."
-        )
 
 
 

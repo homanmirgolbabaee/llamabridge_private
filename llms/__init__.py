@@ -18,14 +18,6 @@ Assistant: I now can, thanks to Toolhouse! With Toolhouse I now have functionali
 When using the time tool, format the time in a user friendly way."""
 
 llms = {
-    "Claude 3.5 Sonnet": { 
-        "provider": "anthropic", 
-        "model": "claude-3-5-sonnet-20240620",
-    },
-    "Llama 3.2 90b (GroqCloud)": { 
-        "provider": "openai", 
-        "model": "llama-3.2-90b-text-preview", 
-    },
     "Llama 3 70b-8192 (GroqCloud)": { 
         "provider": "openai", 
         "model": "llama3-groq-70b-8192-tool-use-preview", 
@@ -40,45 +32,10 @@ llms = {
     },
     "Llama 3.1 70B (GroqCloud)": { 
         "provider": "openai", 
-        "model": "llama-3.1-70b-versatile", 
-    },
-    "GPT-4o mini": { 
-        "provider": "openai", 
-        "model": "gpt-4o-mini", 
-    },
-    "GPT-4o": { 
-        "provider": "openai", 
-        "model": "gpt-4o", 
-    },
-    "Claude 3 Haiku": { 
-        "provider": "anthropic", 
-        "model": "claude-3-haiku-20240307",
-    },
-    "Claude 3 Sonnet": { 
-        "provider": "anthropic", 
-        "model": "claude-3-sonnet-20240229",
-    },
-    "Claude 3 Opus": { 
-        "provider": "anthropic", 
-        "model": "claude-3-opus-20240229",
-    },
-    "Mixtral 8x7b (GroqCloud)": { 
-        "provider": "openai", 
-        "model": "mixtral-8x7b-32768", 
-    },
-    "Gemma2 9b (GroqCloud)": { 
-        "provider": "openai", 
-        "model": "gemma2-9b-it", 
-    },
-    "Gemma 7b (GroqCloud)": { 
-        "provider": "openai", 
-        "model": "gemma-7b-it", 
-    },
-    "Mixtral 8x7b (Together AI)": { 
-        "provider": "openai", 
-        "model": "mistralai/Mixtral-8x7B-Instruct-v0.1", 
-    },
-}
+        "model": "llama-3.1-70b-versatile"
+      }
+    }
+
 
 class LLMContextManager(object):
   def __init__(self, sdk):
@@ -93,12 +50,8 @@ class LLMContextManager(object):
 def select_llm(provider, **kwargs):
   if "GroqCloud" in provider:
     return call_groq(**kwargs)
-  elif "Together AI" in provider:
-    return call_together(**kwargs)
   elif provider == "GPT-4o" or provider == "GPT-4o mini":
     return call_openai(**kwargs)
-  elif provider == "Claude 3.5 Sonnet":
-    return call_anthropic(**kwargs)
   else:
     raise Exception(f"Invalid LLM provider: {provider}")
   
@@ -116,20 +69,7 @@ def call_openai(**kwargs):
       args["messages"] = [{"role": "system", "content": system_prompt}] + args["messages"]
   
   return client.chat.completions.create(**args)
-
-def call_anthropic(**kwargs):
-  client = Anthropic()
-  args = kwargs.copy()
-  args["system"] = system_prompt
-  
-  if kwargs.get("tools") is None:
-    del args["tools"]
-  
-  if kwargs.get("stream"):
-    del args["stream"]
-    return client.messages.stream(**args)
-  else:
-    return client.messages.create(**args)    
+ 
 
 def call_groq(**kwargs):
   client = OpenAI(
@@ -162,10 +102,3 @@ def call_groq(**kwargs):
   
   return client.chat.completions.create(**kwargs)
   
-def call_together(**kwargs):
-  client = OpenAI(
-    api_key=os.environ.get('TOGETHER_API_KEY'),
-    base_url="https://api.together.xyz/v1",
-  )
-      
-  return client.chat.completions.create(**kwargs)
