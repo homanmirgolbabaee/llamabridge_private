@@ -4,12 +4,12 @@ from llms import llms, llm_call
 from http_exceptions.client_exceptions import NotFoundException
 
 st.set_page_config(
-    page_title="Toolhouse Playground",
-    page_icon="https://app.toolhouse.ai/icons/favicon.ico",
+    page_title="Llama Bridge 🦙🌉",
+    page_icon="favicon.ico",
 )
 
 if "messages" not in st.session_state:
-    st.session_state.messaggites = []
+    st.session_state.messages = []
 
 if "user" not in st.session_state:
     st.session_state.user = ""
@@ -31,15 +31,15 @@ import dotenv
 
 dotenv.load_dotenv()
 
-st.logo("logo.svg", link="https://toolhouse.ai")
+st.logo("logo.svg", link="https://lablab.ai/event/hackathon-llama-impatto-roma/llamabridge")
 
 with st.sidebar:
     t = Toolhouse(provider=st.session_state.provider)
-    st.title("💬 Playground")
+    st.title("💬 Llama Bridge 🦙🌉 ")
     with st.expander("Advanced"):
         llm_choice = st.selectbox("Model", tuple(llms.keys()))
         st.session_state.stream = st.toggle("Stream responses", True)
-        user = st.text_input("User", "daniele")
+        user = st.text_input("User", "Homan")
         st.session_state.bundle = st.text_input("Bundle", "default")
         st.session_state.tools = t.get_tools(bundle=st.session_state.bundle)
 
@@ -60,7 +60,9 @@ with st.sidebar:
             if st.session_state.provider != "anthropic":
                 tool_name = tool["function"].get("name")
             st.page_link(f"https://app.toolhouse.ai/store/{tool_name}", label=tool_name)
-
+        st.markdown("---")
+        st.caption("Powered by Toolhouse & LLama ")
+        st.caption("Lablab.ai & Llamaimpact Hackathon Product ")
 
 
 
