@@ -3,14 +3,188 @@ from toolhouse import Toolhouse
 from llms import llms, llm_call
 from http_exceptions.client_exceptions import NotFoundException
 from login import check_password,get_logo_path
-import datetime
+from datetime import datetime, timedelta
+
 from st_utils import print_messages, append_and_print
 from dotenv import load_dotenv
 from login import *
 import time
 
+import streamlit as st
+import webbrowser
+from PIL import Image
+import requests
+from io import BytesIO
+
+import base64
+
+
 load_dotenv()
 
+
+# Utility functions for student dashboard
+def get_document_status():
+    """Get the status of required documents"""
+    return {
+        "Passport Copy": "completed",
+        "Student Visa": "completed",
+        "Residence Permit": "in_progress",
+        "Bank Account": "pending",
+        "Codice Fiscale": "pending",
+        "Health Insurance": "not_started"
+    }
+
+def get_upcoming_appointments():
+    """Get upcoming appointments"""
+    return [
+        {
+            "type": "Questura",
+            "purpose": "Residence Permit",
+            "date": datetime.now() + timedelta(days=5),
+            "status": "confirmed"
+        },
+        {
+            "type": "Bank",
+            "purpose": "Account Opening",
+            "date": datetime.now() + timedelta(days=8),
+            "status": "pending"
+        },
+        {
+            "type": "University",
+            "purpose": "Document Submission",
+            "date": datetime.now() + timedelta(days=3),
+            "status": "confirmed"
+        }
+    ]
+
+import pandas as pd
+
+def get_activity_data():
+    """Get activity data for charts"""
+    return pd.DataFrame({
+        'Month': ['Jan', 'Feb', 'Mar', 'Apr'],
+        'Appointments': [15, 20, 18, 25],
+        'Documents': [8, 12, 10, 15],
+        'Community': [45, 72, 95, 127]
+    })
+
+
+
+
+def render_document_status(status):
+    """Render document status with appropriate emoji"""
+    status_emoji = {
+        "completed": "✅",
+        "in_progress": "⏳",
+        "pending": "⌛",
+        "not_started": "❌"
+    }
+    return status_emoji.get(status, "❓")
+
+def render_template_questions():
+    """Render template questions in a grid layout with larger agency logos"""
+    # Custom CSS for the template cards with larger logos
+    st.markdown("""
+        <style>
+        .template-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 8px;
+            cursor: pointer;
+            background-color: white;
+            transition: transform 0.2s, box-shadow 0.2s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .template-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background-color: #f8f9fa;
+        }
+        .template-icon {
+            margin-bottom: 12px;
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .template-icon img {
+            width: 80px;  /* Increased from 40px */
+            height: 80px; /* Increased from 40px */
+            object-fit: contain;
+        }
+        .template-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .template-question {
+            font-size: 0.95rem;
+            margin: 8px 0;
+            color: #1a1a1a;
+            line-height: 1.4;
+        }
+        .template-category {
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: auto;
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Template questions with agency logos
+    templates = [
+        {
+            "logo": get_image_as_base64("assets/Poste.png"),
+            "question": "How to obtain Residence Permit",
+            "category": "Postal Services"
+        },
+        {
+            "logo": get_image_as_base64("assets/Banco.png"),
+            "question": "How to apply for a student loan in Intesa Sanpaolo online banking?",
+            "category": "Banking"
+        },
+        {
+            "logo": get_image_as_base64("assets/Entrate.png"),
+            "question": "How to obtain Codice Fiscale",
+            "category": "Insurance/Taxation"
+        },
+        {
+            "logo": get_image_as_base64("assets/Poste.png"),  # You can add another agency logo here
+            "question": "How can I schedule an appointment at a government office?",
+            "category": "Services"
+        }
+    ]
+
+    # Create a 2x2 grid for template questions
+    col1, col2 = st.columns(2)
+    
+    # Initialize session state for storing the selected question
+    if "selected_template" not in st.session_state:
+        st.session_state.selected_template = None
+
+    # Display templates in grid
+    for idx, template in enumerate(templates):
+        with col1 if idx % 2 == 0 else col2:
+            # Create clickable card with larger logo
+            card_html = f"""
+                <div class="template-card" onclick="this.style.backgroundColor='#f0f0f0';">
+                    <div class="template-icon">
+                        <img src="{template['logo']}" alt="agency logo">
+                    </div>
+                    <div class="template-content">
+                        <div class="template-question">{template['question']}</div>
+                        <div class="template-category">{template['category']}</div>
+                    </div>
+                </div>
+            """
+            if st.markdown(card_html, unsafe_allow_html=True):
+                st.session_state.selected_template = template['question']
 
 def render_user_profile():
     """Render user profile section with optimized university logo display"""
@@ -32,7 +206,7 @@ def render_user_profile():
                        unsafe_allow_html=True)
             st.markdown(f"<p class='university-info'>{UNIVERSITY_NAMES[st.session_state.university]}</p>", 
                        unsafe_allow_html=True)
-            st.caption(f"Last login: Today at {datetime.datetime.now().strftime('%H:%M')}")
+            st.caption(f"Last login: Today at {datetime.now().strftime('%H:%M')}")
         
         with logo_col:
             # Load and display the logo with optimized settings
@@ -47,44 +221,159 @@ def render_user_profile():
                 # Fallback if logo is missing
                 st.warning("University logo not found", icon="🏛️")
 
-def render_dashboard():
-    """Render the dashboard components"""
-    st.header("📊 Dashboard")
+def render_student_dashboard():
+    """Render the complete student dashboard"""
+    st.header("📊 Student Services Dashboard")
+
+    # Custom CSS for better styling
+    st.markdown("""
+        <style>
+        .metric-card {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .activity-item {
+            padding: 0.5rem;
+            border-left: 3px solid #007bff;
+            margin-bottom: 0.5rem;
+            background-color: #f8f9fa;
+        }
+        .document-status {
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Main metrics
+    col1, col2, col3, col4 = st.columns(4)
     
-    col1, col2, col3 = st.columns(3)
+    # Get data
+    doc_status = get_document_status()
+    appointments = get_upcoming_appointments()
+    completed_docs = sum(1 for status in doc_status.values() if status == "completed")
+    total_docs = len(doc_status)
+    urgent_reminders = sum(1 for apt in appointments if apt["date"] <= datetime.now() + timedelta(days=7))
+
     with col1:
-        st.metric(label="Total Conversations", value="27", delta="↑ 2")
+        st.metric(
+            label="📅 Upcoming Appointments",
+            value=len(appointments),
+            delta=f"{urgent_reminders} urgent"
+        )
     with col2:
-        st.metric(label="Average Response Time", value="1.2s", delta="-0.1s")
+        st.metric(
+            label="📄 Document Status",
+            value=f"{completed_docs}/{total_docs}",
+            delta=f"{total_docs - completed_docs} pending"
+        )
     with col3:
-        st.metric(label="Tools Used", value="156", delta="↑ 12")
-    
+        st.metric(
+            label="👥 Student Community",
+            value="127",
+            delta="↑ 12 this week"
+        )
+    with col4:
+        st.metric(
+            label="🔔 Pending Reminders",
+            value=urgent_reminders,
+            delta="action needed"
+        )
+
+    # Two-column layout for main content
     left_col, right_col = st.columns([2, 1])
+
     with left_col:
-        st.subheader("Usage Analytics")
-        st.line_chart({"data": [1, 5, 2, 6, 2, 1]})
+        # Recent Activity
+        st.subheader("🔄 Recent Activity")
+        for appointment in appointments:
+            st.markdown(
+                f"""<div class="activity-item">
+                    {appointment['type']}: {appointment['purpose']}
+                    <br><small>📅 {appointment['date'].strftime('%B %d, %Y')}</small>
+                </div>""",
+                unsafe_allow_html=True
+            )
+
     with right_col:
-        st.subheader("Recent Activity")
-        with st.container():
-            st.markdown("""
-            - Chat with Climate API Tool
-            - Generated report using Data Analysis Tool
-            - Updated user preferences
-            """)
+        # Document Checklist
+        with st.expander("📋 Document Checklist", expanded=True):
+            for doc, status in doc_status.items():
+                st.markdown(
+                    f"""<div class="document-status">
+                        {render_document_status(status)} {doc}
+                    </div>""",
+                    unsafe_allow_html=True
+                )
+        
+def render_advanced_settings():
+    """Render advanced settings that were previously in sidebar"""
+    t = Toolhouse(provider=st.session_state.provider)
+    
+    with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            llm_choice = st.selectbox("Model", tuple(llms.keys()), 
+                                    index=tuple(llms.keys()).index(st.session_state.llm_choice))
+            st.session_state.stream = st.toggle("Stream responses", True)
+            user_input = st.text_input("User", st.session_state.user)
+            if user_input != st.session_state.user:
+                st.session_state.user = user_input
+
+
+        with col2:
+            st.session_state.bundle = st.text_input("Bundle", "default")
+            available_tools = None
+            #st.session_state.tools = t.get_tools(bundle=st.session_state.bundle)
+            
+            # Tool loading progress
+            with st.spinner("Loading tools..."):
+                progress_bar = st.progress(0)
+                try:
+                    for i in range(100):
+                        time.sleep(0.01)
+                        progress_bar.progress(i + 1)
+                    
+                    available_tools = t.get_tools(bundle=st.session_state.bundle)
+                    st.session_state.tools = available_tools
+
+                except NotFoundException:
+                    available_tools = None
+                finally:
+                    progress_bar.empty()
+
+            if not available_tools:
+                st.error("⚠️ No tools installed", icon="🔧")
+                st.caption(
+                    "Go to the [Tool Store](https://app.toolhouse.ai/store) to install your tools, or visit [Bundles](https://app.toolhouse.ai/bundles) to check if the selected bundle exists."
+                )
+    
+    return llm_choice
+
+
+
+
+
+
 
 def render_chat():
+
+    
     """Render the chat interface"""
     # Sidebar for chat settings
     with st.sidebar:
         t = Toolhouse(provider=st.session_state.provider)
         st.title("💬 Llama Bridge 🦙🌉")
         
-        with st.expander("Advanced"):
-            llm_choice = st.selectbox("Model", tuple(llms.keys()))
-            st.session_state.stream = st.toggle("Stream responses", True)
-            user = st.text_input("User", st.session_state.user_first_name)
-            st.session_state.bundle = st.text_input("Bundle", "default")
-            st.session_state.tools = t.get_tools(bundle=st.session_state.bundle)
+        #with st.expander("Advanced"):
+        #    llm_choice = st.selectbox("Model", tuple(llms.keys()))
+        #    st.session_state.stream = st.toggle("Stream responses", True)
+        #    user = st.text_input("User", st.session_state.user_first_name)
+        #    st.session_state.bundle = st.text_input("Bundle", "default")
+        #    st.session_state.tools = t.get_tools(bundle=st.session_state.bundle)
 
         # Add progress bar for tool loading
         with st.spinner("Loading tools..."):
@@ -154,6 +443,8 @@ def render_chat():
             </style>
         """, unsafe_allow_html=True)
 
+        available_tools = st.session_state.tools
+    
         # Tool display section
         if not available_tools:
             st.error("⚠️ No tools installed", icon="🔧")
@@ -199,11 +490,16 @@ def render_chat():
 
     # Main chat area
     st.header("💬 Chat")
+
+    with st.expander("📝 Quick Questions", expanded=True):
+        render_template_questions()
+
+
     # Create a container for the chat history
     chat_container = st.container()
     
     # Initialize LLM settings
-    llm = llms.get(llm_choice)
+    llm = llms.get(st.session_state.llm_choice)
     st.session_state.provider = llm.get("provider")
     model = llm.get("model")
     
@@ -214,8 +510,8 @@ def render_chat():
         st.session_state.previous_bundle = st.session_state.bundle
 
     th.set_metadata("timezone", -7)
-    if user:
-        th.set_metadata("id", user)
+    if st.session_state.user:
+        th.set_metadata("id", st.session_state.user)
 
     # Chat interface
     print_messages(st.session_state.messages, st.session_state.provider)
@@ -226,7 +522,7 @@ def render_chat():
             st.markdown(prompt)
 
         with llm_call(
-            provider=llm_choice,
+            provider=st.session_state.llm_choice,
             model=model,
             messages=st.session_state.messages,
             stream=st.session_state.stream,
@@ -240,7 +536,7 @@ def render_chat():
             while tool_results:
                 st.session_state.messages += tool_results
                 with llm_call(
-                    provider=llm_choice,
+                    provider=st.session_state.llm_choice,
                     model=model,
                     messages=st.session_state.messages,
                     stream=st.session_state.stream,
@@ -273,7 +569,10 @@ def main():
         st.session_state.bundle = "default"
     if "previous_bundle" not in st.session_state:
         st.session_state.previous_bundle = "default"
-    
+    if "llm_choice" not in st.session_state:
+        st.session_state.llm_choice = next(iter(llms))
+    if "user" not in st.session_state:
+        st.session_state.user = st.session_state.user_first_name    
     
     # Top navigation
     with st.container():
@@ -288,10 +587,11 @@ def main():
 
     
     # Main content tabs
-    tab1, tab2, tab3 = st.tabs(["Dashboard", "Chat", "Settings"])
+    tab1, tab2, tab3 , tab4 = st.tabs(["Dashboard", "Chat", "Settings","Services"])
     
     with tab1:
-        render_dashboard()
+        render_student_dashboard()
+
         
     with tab2:
         render_chat()
@@ -299,7 +599,103 @@ def main():
 
     with tab3:
         st.header("⚙️ Settings")
-        st.info("Settings page under development")
+        with st.expander("Advanced Settings", expanded=True):
+            llm_choice = render_advanced_settings()
+            if llm_choice != st.session_state.llm_choice:
+                st.session_state.llm_choice = llm_choice
+
+
+    with tab4:
+        st.header("🏛️ Public Grants Eligibility ")
+        create_service_cards()
+
+
+
+def get_image_as_base64(file_path):
+    with open(file_path, "rb") as image_file:
+        encoded = base64.b64encode(image_file.read()).decode()
+    return f"data:image/png;base64,{encoded}"
+
+
+def create_service_cards():
+    # Add custom CSS for card styling
+    st.markdown("""
+    <style>
+    .service-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 10px;
+        text-align: center;
+        background-color: white;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    .logo-container {
+        height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+    }
+    .service-info {
+        margin-top: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Define services
+    services = [
+        {
+            "name": "Poste Italiane",
+            "website": "https://www.poste.it",
+            "logo_path": get_image_as_base64("assets/Poste.png"),  # Replace with actual logo path
+            "description": "Mail and financial services"
+        },
+        {
+            "name": "Intesa Sanpaolo",
+            "website": "https://www.intesasanpaolo.com",
+            "logo_path":  get_image_as_base64("assets/Banco.png"),  # Replace with actual logo path
+            "description": "Banking services"
+        },
+        {
+            "name": "Agenzia delle Entrate",
+            "website": "https://www.agenziaentrate.gov.it",
+            "logo_path": get_image_as_base64("assets/Entrate.png"),  # Replace with actual logo path
+            "description": "Tax services"
+        }
+    ]
+
+    # Create grid layout
+    cols = st.columns(3)
+
+    # Display service cards
+    for idx, service in enumerate(services):
+        with cols[idx % 3]:
+            # Create clickable card
+            with st.container():
+                st.markdown(f"""
+                <div class="service-card">
+                    <div class="logo-container">
+                        <img src="{service['logo_path']}" alt="{service['name']}" style="max-width: 120px; max-height: 120px;">
+                    </div>
+                    <div class="service-info">
+                        <h3>{service['name']}</h3>
+                        <p>{service['description']}</p>
+                        <p><a href="{service['website']}" target="_blank">{service['website']}</a></p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Create button
+                if st.button(f"Visit {service['name']}", key=service['name']):
+                    webbrowser.open_new_tab(service['website'])
+
 
 if __name__ == "__main__":
     main()
+
