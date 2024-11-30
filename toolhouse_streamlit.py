@@ -281,7 +281,7 @@ def main():
         with right_col:
             render_user_profile()
     
-    st.divider()
+
     
     # Main content tabs
     tab1, tab2, tab3 = st.tabs(["Dashboard", "Chat", "Settings"])
