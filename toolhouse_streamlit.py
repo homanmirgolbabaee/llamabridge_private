@@ -2,10 +2,48 @@ import streamlit as st
 from toolhouse import Toolhouse
 from llms import llms, llm_call
 from http_exceptions.client_exceptions import NotFoundException
-from login import check_password
+from login import check_password,get_logo_path
 import datetime
 from st_utils import print_messages, append_and_print
 import dotenv
+from login import *
+import time
+
+
+def render_user_profile():
+    """Render user profile section with optimized university logo display"""
+    with st.container():
+        # Adjusted column ratio for better logo visibility
+        user_col, logo_col = st.columns([2, 1])
+        
+        with user_col:
+            # Added padding and styling
+            st.markdown("""
+                <style>
+                    .user-greeting { font-size: 1.2rem; margin-bottom: 0; }
+                    .university-info { color: #666; margin-top: 0; }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            # User information with improved styling
+            st.markdown(f"<p class='user-greeting'> Hello, {st.session_state.user_first_name}👋</p>", 
+                       unsafe_allow_html=True)
+            st.markdown(f"<p class='university-info'>{UNIVERSITY_NAMES[st.session_state.university]}</p>", 
+                       unsafe_allow_html=True)
+            st.caption(f"Last login: Today at {datetime.datetime.now().strftime('%H:%M')}")
+        
+        with logo_col:
+            # Load and display the logo with optimized settings
+            logo_path = get_logo_path(st.session_state.university)
+            if os.path.exists(logo_path):
+                # Added container for better logo positioning
+                with st.container():
+                    # Increased size and added padding
+                    st.image(logo_path, width=80, use_column_width=False)
+                    
+            else:
+                # Fallback if logo is missing
+                st.warning("University logo not found", icon="🏛️")
 
 def render_dashboard():
     """Render the dashboard components"""
@@ -46,26 +84,116 @@ def render_chat():
             st.session_state.bundle = st.text_input("Bundle", "default")
             st.session_state.tools = t.get_tools(bundle=st.session_state.bundle)
 
-        try:
-            available_tools = t.get_tools(bundle=st.session_state.bundle)
-        except NotFoundException:
-            available_tools = None
+        # Add progress bar for tool loading
+        with st.spinner("Loading tools..."):
+            progress_bar = st.progress(0)
+            try:
+                # Simulate loading progress
+                for i in range(100):
+                    time.sleep(0.01)  # Small delay for visual effect
+                    progress_bar.progress(i + 1)
+                
+                available_tools = t.get_tools(bundle=st.session_state.bundle)
+                st.session_state.tools = available_tools
 
+            except NotFoundException:
+                available_tools = None
+
+            finally:
+                progress_bar.empty()  # Remove progress bar after loading
+
+        # Custom CSS for tool display and footer
+        st.markdown("""
+            <style>
+                .tool-container {
+                    background-color: #f0f2f6;
+                    border-radius: 4px;
+                    padding: 8px;
+                    margin: 4px 0;
+                }
+                .tool-header {
+                    color: #0e1117;
+                    font-size: 0.9em;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                }
+                .tool-list {
+                    max-height: 200px;
+                    overflow-y: auto;
+                }
+                .tool-item {
+                    background-color: white;
+                    border-radius: 3px;
+                    padding: 4px 8px;
+                    margin: 4px 0;
+                    font-size: 0.8em;
+                    border-left: 3px solid #ff4b4b;
+                }
+                .tool-count {
+                    color: #666;
+                    font-size: 0.8em;
+                    margin-left: 4px;
+                }
+                .sidebar-footer {
+                    position: fixed;
+                    bottom: 20px;
+                    left: 0;
+                    width: 100%;
+                    padding: 10px;
+                    text-align: center;
+                    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.9) 20%);
+                }
+                .footer-text {
+                    margin: 0;
+                    padding: 2px 0;
+                    font-size: 0.7em;
+                    color: #666;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Tool display section
         if not available_tools:
-            st.subheader("No tools installed")
+            st.error("⚠️ No tools installed", icon="🔧")
             st.caption(
                 "Go to the [Tool Store](https://app.toolhouse.ai/store) to install your tools, or visit [Bundles](https://app.toolhouse.ai/bundles) to check if the selected bundle exists."
             )
+
         else:
-            st.subheader("Installed tools")
-            for tool in available_tools:
-                tool_name = tool.get("name")
-                if st.session_state.provider != "anthropic":
-                    tool_name = tool["function"].get("name")
-                st.page_link(f"https://app.toolhouse.ai/store/{tool_name}", label=tool_name)
-            st.markdown("---")
-            st.caption("Powered by Toolhouse & LLama")
-            st.caption("Lablab.ai & Llamaimpact Hackathon Product")
+            with st.expander("🔧 Available Tools"):
+                tool_count = len(available_tools)
+                st.markdown(
+                    f'<div class="tool-container">'
+                    f'<div class="tool-header">Installed Tools <span class="tool-count">({tool_count})</span></div>'
+                    '<div class="tool-list">',
+                    unsafe_allow_html=True
+                )
+                
+                for tool in available_tools:
+                    tool_name = tool.get("name")
+                    if st.session_state.provider != "anthropic":
+                        tool_name = tool["function"].get("name")
+                    st.markdown(
+                        f'<div class="tool-item">'
+                        f'<a href="https://app.toolhouse.ai/store/{tool_name}" target="_blank" '
+                        f'style="text-decoration: none; color: inherit;">{tool_name}</a>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+                
+                st.markdown('</div></div>', unsafe_allow_html=True)
+        
+        # Add some vertical space before the captions
+        st.markdown("<br>" * 5, unsafe_allow_html=True)
+        
+        # Simple captions at the bottom
+        st.markdown("---")
+        st.markdown('<div class="caption-container">', unsafe_allow_html=True)
+        st.caption("Powered by Toolhouse & Llama")
+        st.caption("Lablab.ai & LlamaImpact Hackathon Product")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
 
     # Main chat area
     st.header("💬 Chat")
@@ -142,16 +270,16 @@ def main():
     if "previous_bundle" not in st.session_state:
         st.session_state.previous_bundle = "default"
     
+    
     # Top navigation
     with st.container():
-        col1, col2, col3 = st.columns([2,1,1])
-        with col1:
+        # App title on the left
+        left_col, right_col = st.columns([2,1])
+        with left_col:
             st.title("🦙 Llama Bridge")
-        with col2:
-            st.empty()
-        with col3:
-            st.write(f"👋 Hello, {st.session_state.user_first_name}!")
-            st.caption(f"Last login: Today at {datetime.datetime.now().strftime('%H:%M')}")
+        # User profile with university logo on the right
+        with right_col:
+            render_user_profile()
     
     st.divider()
     
@@ -163,7 +291,8 @@ def main():
         
     with tab2:
         render_chat()
-    
+    #    pass
+
     with tab3:
         st.header("⚙️ Settings")
         st.info("Settings page under development")
