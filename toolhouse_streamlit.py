@@ -5,9 +5,11 @@ from http_exceptions.client_exceptions import NotFoundException
 from login import check_password,get_logo_path
 import datetime
 from st_utils import print_messages, append_and_print
-import dotenv
+from dotenv import load_dotenv
 from login import *
 import time
+
+load_dotenv()
 
 
 def render_user_profile():
@@ -197,6 +199,8 @@ def render_chat():
 
     # Main chat area
     st.header("💬 Chat")
+    # Create a container for the chat history
+    chat_container = st.container()
     
     # Initialize LLM settings
     llm = llms.get(llm_choice)

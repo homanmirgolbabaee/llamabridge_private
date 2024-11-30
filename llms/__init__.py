@@ -2,6 +2,34 @@ import os
 from openai import OpenAI
 from anthropic import Anthropic
 from groq import Groq
+from phoenix.otel import register
+from openinference.instrumentation.openai import OpenAIInstrumentor
+from openinference.instrumentation.groq import GroqInstrumentor
+
+from dotenv import load_dotenv
+# Load environment variables
+load_dotenv()
+
+# Get Phoenix API Key from environment
+PHOENIX_API_KEY = os.getenv('PHOENIX_API_KEY')
+
+if not PHOENIX_API_KEY:
+    raise EnvironmentError("PHOENIX_API_KEY not found in environment variables")
+
+# Set up Phoenix headers
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+
+# Configure the Phoenix tracer
+tracer_provider = register(
+    project_name="LlamaBridge",
+    endpoint="https://app.phoenix.arize.com/v1/traces",
+)
+
+# Instrument OpenAI and Groq
+GroqInstrumentor().instrument(tracer_provider=tracer_provider)
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+
+
 
 system_prompt="""You are a helpful assistant built by Toolhouse. You have advanced tools at your disposal:
 
