@@ -6,7 +6,7 @@ from login import check_password,get_logo_path
 from datetime import datetime, timedelta
 
 from st_utils import print_messages, append_and_print
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from login import *
 import time
 
@@ -19,7 +19,7 @@ from io import BytesIO
 import base64
 
 
-load_dotenv()
+#load_dotenv()
 
 def get_template_config():
     """Define templates with their additional system instructions"""

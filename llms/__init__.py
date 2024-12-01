@@ -5,13 +5,16 @@ from groq import Groq
 from phoenix.otel import register
 from openinference.instrumentation.openai import OpenAIInstrumentor
 from openinference.instrumentation.groq import GroqInstrumentor
-
-from dotenv import load_dotenv
+import streamlit as st
+#from dotenv import load_dotenv
 # Load environment variables
-load_dotenv()
+#load_dotenv()
+
 
 # Get Phoenix API Key from environment
-PHOENIX_API_KEY = os.getenv('PHOENIX_API_KEY')
+PHOENIX_API_KEY = st.secrets['PHOENIX_API_KEY']
+os.environ["TOOLHOUSE_API_KEY"] = st.secrets['TOOLHOUSE_API_KEY']
+os.environ["OPENAI_API_KEY"] = st.secrets['OPENAI_API_KEY']
 
 if not PHOENIX_API_KEY:
     raise EnvironmentError("PHOENIX_API_KEY not found in environment variables")
