@@ -19,6 +19,54 @@ from io import BytesIO
 import base64
 
 
+
+# Add this import at the top of your file
+from PIL import Image
+import os
+
+# Add this function to load and display logos
+def render_sponsor_logos():
+    """Render sponsor logos in the sidebar"""
+    # Custom CSS for logo container
+    st.markdown("""
+        <style>
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            padding: 8px;
+        }
+        .sponsor-logo {
+            max-height: 30px;
+            width: auto;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .sponsor-logo:hover {
+            opacity: 1;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Create logo container
+    st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+    
+    # Load and display logos
+    logo_paths = ["assets/Poste.png", "assets/Banco.png", "assets/Entrate.png"]
+    cols = st.columns(len(logo_paths))
+    
+    for col, logo_path in zip(cols, logo_paths):
+        if os.path.exists(logo_path):
+            with col:
+                image = Image.open(logo_path)
+                st.image(image, use_column_width=True, output_format='PNG')
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+
 #load_dotenv()
 
 def get_template_config():
@@ -401,10 +449,46 @@ def render_chat():
                         help="Download the complete guide for obtaining residence permit",
                         key="download_permit_guide"
                     )
-                # Optional: Add a reset button to hide the download section
-                if st.button("Hide Download Section"):
-                    st.session_state.show_download = False
-                    st.rerun()
+
+                from openai import OpenAI
+                
+                # Set up the environment and client
+                os.environ["OPENAI_API_KEY"] = st.secrets['OPENAI_API_KEY']
+                client = OpenAI(
+                    api_key=os.environ.get('GROQCLOUD_API_KEY'),
+                    base_url="https://api.groq.com/openai/v1",
+                )
+
+                # Create the chat completion
+                chat_completion = client.chat.completions.create(
+                    model="llama-3.2-3b-preview",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "write a dialogue in Italian for a non-Italian speaker to request a 'Permesso Kit' from the counter at 'posteitaliane'. Include both Italian text and English translations."
+                        }
+                    ],
+                    temperature=0.7,
+                )
+
+                # Get the generated dialogue
+                dialogue = chat_completion.choices[0].message.content
+
+                # Create a downloadable file
+                def create_download_button():
+                    # Create the .txt file content with proper formatting
+                    formatted_dialogue = f"Italian Dialogue for Requesting Permesso Kit\n\n{dialogue}"
+                    
+                    # Create download button
+                    st.download_button(
+                        label="Download Dialogue",
+                        data=formatted_dialogue,
+                        file_name="permesso_kit_dialogue.txt",
+                        mime="text/plain"
+                    )
+
+                # Display the download button
+                create_download_button()
 
             except FileNotFoundError:
                 st.error("PDF file not found. Please ensure 'guide.pdf' exists in the 'data' folder.")
@@ -520,9 +604,9 @@ def render_chat():
         st.markdown('<div class="caption-container">', unsafe_allow_html=True)
         st.caption("Powered by Toolhouse & Groq")
         st.caption("Lablab.ai & LlamaImpact Hackathon Product")
+        # st.markdown('</div>', unsafe_allow_html=True)
+        render_sponsor_logos()  # Add this line
         st.markdown('</div>', unsafe_allow_html=True)
-
-
 
     # Main chat area
     st.header("💬 Chat")
