@@ -21,6 +21,36 @@ import base64
 
 load_dotenv()
 
+def get_template_config():
+    """Define templates with their additional system instructions"""
+    return [
+        {
+            "logo": get_image_as_base64("assets/Poste.png"),
+            "question": "How to obtain Residence Permit",
+            "category": "Postal Services",
+            "additional_instructions": """ use perplexity tool for query : "How to obtain Residence Permit as an Inernational Student Residing in city of Padova"  """
+        },
+        {
+            "logo": get_image_as_base64("assets/Banco.png"),
+            "question": "How to open a Bank account in Intesa Sanpaolo Bank?",
+            "category": "Banking",
+            "additional_instructions": """ use perplexity_byok tool for query: "How to Open a Bank account in Intesa Sanpaolo Bank? as an Inernational Student Residing in city of Padova """
+        },
+        {
+            "logo": get_image_as_base64("assets/Entrate.png"),
+            "question": "How to obtain Codice Fiscale",
+            "category": "Insurance/Taxation",
+            "additional_instructions": """ use perplexity tool for query : "How to obtain Codice Fiscale Inernational Student Residing in city of Padova" as an Inernational Student Residing in city of Padova  """
+        },
+        {
+            "logo": get_image_as_base64("assets/Poste.png"),
+            "question": "How to apply for Carta di identita ?",
+            "category": "Services",
+            "additional_instructions": """ use perplexity tool for query :  "How to apply for Carta di identita "  as an Inernational Student Residing in city of Padova """
+        }
+    ]
+
+
 
 # Utility functions for student dashboard
 def get_document_status():
@@ -51,7 +81,7 @@ def get_upcoming_appointments():
         },
         {
             "type": "University",
-            "purpose": "Document Submission",
+            "purpose": "Codice Fiscale",
             "date": datetime.now() + timedelta(days=3),
             "status": "confirmed"
         }
@@ -112,8 +142,8 @@ def render_template_questions():
             justify-content: center;
         }
         .template-icon img {
-            width: 80px;  /* Increased from 40px */
-            height: 80px; /* Increased from 40px */
+            width: 80px;
+            height: 80px;
             object-fit: contain;
         }
         .template-content {
@@ -138,54 +168,34 @@ def render_template_questions():
     """, unsafe_allow_html=True)
 
     # Template questions with agency logos
-    templates = [
-        {
-            "logo": get_image_as_base64("assets/Poste.png"),
-            "question": "How to obtain Residence Permit",
-            "category": "Postal Services"
-        },
-        {
-            "logo": get_image_as_base64("assets/Banco.png"),
-            "question": "How to apply for a student loan in Intesa Sanpaolo online banking?",
-            "category": "Banking"
-        },
-        {
-            "logo": get_image_as_base64("assets/Entrate.png"),
-            "question": "How to obtain Codice Fiscale",
-            "category": "Insurance/Taxation"
-        },
-        {
-            "logo": get_image_as_base64("assets/Poste.png"),  # You can add another agency logo here
-            "question": "How can I schedule an appointment at a government office?",
-            "category": "Services"
-        }
-    ]
+    templates = get_template_config()
+
+    # Initialize session states
+    if "selected_template" not in st.session_state:
+        st.session_state.selected_template = None
+    if "template_submitted" not in st.session_state:
+        st.session_state.template_submitted = False
+    if "additional_instructions" not in st.session_state:
+        st.session_state.additional_instructions = None
 
     # Create a 2x2 grid for template questions
     col1, col2 = st.columns(2)
-    
-    # Initialize session state for storing the selected question
-    if "selected_template" not in st.session_state:
-        st.session_state.selected_template = None
 
     # Display templates in grid
     for idx, template in enumerate(templates):
         with col1 if idx % 2 == 0 else col2:
-            # Create clickable card with larger logo
-            card_html = f"""
-                <div class="template-card" onclick="this.style.backgroundColor='#f0f0f0';">
-                    <div class="template-icon">
-                        <img src="{template['logo']}" alt="agency logo">
-                    </div>
-                    <div class="template-content">
-                        <div class="template-question">{template['question']}</div>
-                        <div class="template-category">{template['category']}</div>
-                    </div>
-                </div>
-            """
-            if st.markdown(card_html, unsafe_allow_html=True):
+            if st.button(
+                template['question'],
+                key=f"template_{idx}",
+                use_container_width=True,
+                help=f"Click to ask about {template['category']}"
+            ):
                 st.session_state.selected_template = template['question']
-
+                st.session_state.additional_instructions = template['additional_instructions']
+                st.session_state.template_submitted = True
+                if template['question'] == "How to obtain Residence Permit":
+                    st.session_state.show_download = True    
+                st.rerun()  # Force a rerun to update the sidebar
 def render_user_profile():
     """Render user profile section with optimized university logo display"""
     with st.container():
@@ -249,7 +259,7 @@ def render_student_dashboard():
     """, unsafe_allow_html=True)
 
     # Main metrics
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
     # Get data
     doc_status = get_document_status()
@@ -262,25 +272,16 @@ def render_student_dashboard():
         st.metric(
             label="📅 Upcoming Appointments",
             value=len(appointments),
-            delta=f"{urgent_reminders} urgent"
         )
     with col2:
         st.metric(
             label="📄 Document Status",
             value=f"{completed_docs}/{total_docs}",
-            delta=f"{total_docs - completed_docs} pending"
         )
     with col3:
         st.metric(
-            label="👥 Student Community",
-            value="127",
-            delta="↑ 12 this week"
-        )
-    with col4:
-        st.metric(
             label="🔔 Pending Reminders",
             value=urgent_reminders,
-            delta="action needed"
         )
 
     # Two-column layout for main content
@@ -368,12 +369,47 @@ def render_chat():
         t = Toolhouse(provider=st.session_state.provider)
         st.title("💬 Llama Bridge 🦙🌉")
         
-        #with st.expander("Advanced"):
-        #    llm_choice = st.selectbox("Model", tuple(llms.keys()))
-        #    st.session_state.stream = st.toggle("Stream responses", True)
-        #    user = st.text_input("User", st.session_state.user_first_name)
-        #    st.session_state.bundle = st.text_input("Bundle", "default")
-        #    st.session_state.tools = t.get_tools(bundle=st.session_state.bundle)
+        # Add download button section
+        if "show_download" not in st.session_state:
+            st.session_state.show_download = False
+            
+        # Debug information (you can remove these after confirming it works)
+        #st.write("Debug Info:")
+        #st.write(f"Selected Template: {st.session_state.get('selected_template')}")
+        #st.write(f"Show Download: {st.session_state.show_download}")
+
+
+        # Check if the Residence Permit template was selected
+        if (hasattr(st.session_state, 'selected_template') and 
+            st.session_state.selected_template == "How to obtain Residence Permit"):
+            st.session_state.show_download = True
+            st.write("Template matched - should show download button")
+
+        # Show download button if template was selected
+        if st.session_state.show_download:
+            st.markdown("---")
+            st.markdown("### 📑 Download Resources")
+            
+            try:
+                # Add download button for PDF
+                with open("data/guide.pdf", "rb") as pdf_file:
+                    st.download_button(
+                        label="📥 Download Residence Permit Guide",
+                        data=pdf_file,
+                        file_name="guide.pdf",
+                        mime="application/pdf",
+                        help="Download the complete guide for obtaining residence permit",
+                        key="download_permit_guide"
+                    )
+                # Optional: Add a reset button to hide the download section
+                if st.button("Hide Download Section"):
+                    st.session_state.show_download = False
+                    st.rerun()
+
+            except FileNotFoundError:
+                st.error("PDF file not found. Please ensure 'guide.pdf' exists in the 'data' folder.")
+            
+
 
         # Add progress bar for tool loading
         with st.spinner("Loading tools..."):
@@ -482,7 +518,7 @@ def render_chat():
         # Simple captions at the bottom
         st.markdown("---")
         st.markdown('<div class="caption-container">', unsafe_allow_html=True)
-        st.caption("Powered by Toolhouse & Llama")
+        st.caption("Powered by Toolhouse & Groq")
         st.caption("Lablab.ai & LlamaImpact Hackathon Product")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -516,7 +552,23 @@ def render_chat():
     # Chat interface
     print_messages(st.session_state.messages, st.session_state.provider)
 
-    if prompt := st.chat_input("What is up?"):
+    # Handle both template selection and regular chat input
+    prompt = None
+
+
+    #if prompt := st.chat_input("What is up?"):
+    #    st.session_state.messages.append({"role": "user", "content": prompt})
+    #    with st.chat_message("user"):
+    #        st.markdown(prompt)
+    prompt = st.chat_input("What is up?")
+    # Handle template selection
+    if hasattr(st.session_state, 'template_submitted') and st.session_state.template_submitted:
+        prompt = st.session_state.selected_template
+        st.session_state.template_submitted = False
+        st.session_state.selected_template = None  # Clear the selection
+
+
+    if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -573,7 +625,11 @@ def main():
         st.session_state.llm_choice = next(iter(llms))
     if "user" not in st.session_state:
         st.session_state.user = st.session_state.user_first_name    
-    
+    if "selected_template" not in st.session_state:
+        st.session_state.selected_template = None
+    if "template_submitted" not in st.session_state:
+        st.session_state.template_submitted = False    
+
     # Top navigation
     with st.container():
         # App title on the left
@@ -587,27 +643,27 @@ def main():
 
     
     # Main content tabs
-    tab1, tab2, tab3 , tab4 = st.tabs(["Dashboard", "Chat", "Settings","Services"])
-    
+    # tab1, tab2, tab3 , tab4 = st.tabs(["Dashboard", "Chat", "Settings","Services"])
+    tab1, tab2, tab3  = st.tabs(["Chat", "LLM Settings", "Dashboard"])
     with tab1:
-        render_student_dashboard()
-
+        
+        render_chat()
         
     with tab2:
-        render_chat()
-    #    pass
-
-    with tab3:
         st.header("⚙️ Settings")
         with st.expander("Advanced Settings", expanded=True):
             llm_choice = render_advanced_settings()
             if llm_choice != st.session_state.llm_choice:
                 st.session_state.llm_choice = llm_choice
+    #    pass
 
+    with tab3:
+        render_student_dashboard()        
+        
 
-    with tab4:
-        st.header("🏛️ Public Grants Eligibility ")
-        create_service_cards()
+    #with tab4:
+    #    st.header("🏛️ Public Grants Eligibility ")
+    #    create_service_cards()
 
 
 

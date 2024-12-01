@@ -65,12 +65,30 @@ def check_password():
         return False
         
     if not st.session_state.authenticated:
-        st.title("🔒 Login")
+
+
+        # Add custom CSS for centered title
+        st.markdown("""
+            <style>
+                div[data-testid="stTitle"] {
+                    text-align: center;
+                    padding: 1rem 0;
+                    margin-bottom: 2rem;
+                }
+                div.stButton > button {
+                    width: 100%;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        # Create empty columns for spacing
+        _, center_col, _ = st.columns([1,2,1])        
+        center_col.title("🔒 Login")
         
         # Center the login form using columns
-        col1, col2, col3 = st.columns([1,2,1])
+        # col1, col2, col3 = st.columns([1,2,1])
         
-        with col2:
+        with center_col:
             st.text_input("Username", key="username")
             st.text_input("Password", type="password", key="password")
             if st.button("Login", type="primary"):
