@@ -65,9 +65,7 @@ def check_password():
         return False
         
     if not st.session_state.authenticated:
-
-
-        # Add custom CSS for centered title
+        # Add custom CSS for centered title and notice
         st.markdown("""
             <style>
                 div[data-testid="stTitle"] {
@@ -78,16 +76,35 @@ def check_password():
                 div.stButton > button {
                     width: 100%;
                 }
+                .demo-notice {
+                    padding: 1rem;
+                    background-color: #f0f2f6;
+                    border-radius: 0.5rem;
+                    margin: 1rem 0;
+                    text-align: center;
+                }
             </style>
         """, unsafe_allow_html=True)
         
         # Create empty columns for spacing
         _, center_col, _ = st.columns([1,2,1])        
+        # Add demo notice at the top
+        st.markdown("""
+            <div class='demo-notice'>
+                <h3>🚧 Demo Version Notice</h3>
+                <p>Currently, the <strong>"How To Obtain Residence Permit"</strong> feature is fully functional as shown in hackathon demo. 
+                <p>
+                I will make the other features as seemless as soon as possible ! 
+                </p>
+                </p>
+                <p> Thank you for your understanding!</p> 
+            </div>
+        """, unsafe_allow_html=True)
+        
         center_col.title("🔒 Login")
-        
-        # Center the login form using columns
-        # col1, col2, col3 = st.columns([1,2,1])
-        
+
+
+
         with center_col:
             st.text_input("Username", key="username")
             st.text_input("Password", type="password", key="password")
